@@ -13,6 +13,7 @@ SYNTAX_DICT = {
         '/help' : [],
         '/docs' : [],
         '/quit' : [],
+        '/gbq' : [],
         '/show' : [],
         '/json_compact' : [],
         '/json_full' : [],

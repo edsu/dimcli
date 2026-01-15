@@ -1,6 +1,19 @@
 # Changelog
 
 
+## v 1.6
+
+* New `/gbq` command for BigQuery schema exploration
+  * `/gbq tables [keyword]` - list tables in tabular format with name, last updated, and full path
+  * `/gbq fields [table]` - list all fields in a specific table
+  * `/gbq fields "search"` - search for fields containing string across all tables
+  * `/gbq fields [table] "search"` - search for fields within a specific table
+  * Defaults to `dimensions-ai.data_analytics` dataset
+  * Auto-displays fields when exactly one table is found
+  * Tabular output format for easy copy-paste into SQL queries
+* Added BigQuery configuration support in `~/.dimensions/settings` file
+* Added optional dependency: `google-cloud-bigquery>=3.0.0`
+
 ## v 1.5
 
 * Added DSL grammar for DSL [V2.13](https://docs.dimensions.ai/dsl/releasenotes.html#version-2-13-2025-november-week-of-10th)
