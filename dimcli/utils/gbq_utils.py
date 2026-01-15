@@ -340,3 +340,359 @@ def print_fields(fields_data, search_term=None):
 
     click.echo()  # Final newline
     click.secho(f"{'='*60}", dim=True)
+
+
+def print_query_template(table_name, dataset_id=None, project_id=None):
+    """
+    Generate and print SQL query templates for a table
+
+    Args:
+        table_name: Name of the table
+        dataset_id: Dataset ID (defaults to DEFAULT_DATASET)
+        project_id: Project ID (defaults to DEFAULT_PROJECT)
+    """
+    # Use defaults if not provided
+    if dataset_id is None:
+        from ..core.auth import get_gbq_dataset_id
+        dataset_id = get_gbq_dataset_id()
+        if dataset_id is None:
+            dataset_id = DEFAULT_DATASET
+
+    if project_id is None:
+        from ..core.auth import get_gbq_project_id
+        project_id = get_gbq_project_id()
+        if project_id is None:
+            project_id = DEFAULT_PROJECT
+
+    full_path = f"{project_id}.{dataset_id}.{table_name}"
+
+    click.echo()
+    click.secho(f"SQL QUERY TEMPLATES for {table_name}", bold=True, fg='cyan')
+    click.secho(f"{'='*70}", dim=True)
+    click.echo()
+
+    # Template 1: Count all rows
+    click.secho("1. Count total rows:", bold=True)
+    query1 = f"""SELECT COUNT(*) as total_rows
+FROM `{full_path}`"""
+    click.secho(query1, fg='green')
+    click.echo()
+
+    # Template 2: Preview rows
+    click.secho("2. Preview first 10 rows:", bold=True)
+    query2 = f"""SELECT *
+FROM `{full_path}`
+LIMIT 10"""
+    click.secho(query2, fg='green')
+    click.echo()
+
+    # Template 3: Count with GROUP BY
+    click.secho("3. Count by field (replace <field_name>):", bold=True)
+    query3 = f"""SELECT
+  <field_name>,
+  COUNT(*) as count
+FROM `{full_path}`
+GROUP BY <field_name>
+ORDER BY count DESC
+LIMIT 20"""
+    click.secho(query3, fg='green')
+    click.echo()
+
+    # Template 4: Basic SELECT with WHERE
+    click.secho("4. Filter rows (replace <field_name> and <value>):", bold=True)
+    query4 = f"""SELECT *
+FROM `{full_path}`
+WHERE <field_name> = '<value>'
+LIMIT 100"""
+    click.secho(query4, fg='green')
+    click.echo()
+
+    # Template 5: Date range query
+    click.secho("5. Date range query (replace <date_field> and dates):", bold=True)
+    query5 = f"""SELECT *
+FROM `{full_path}`
+WHERE <date_field> BETWEEN '2024-01-01' AND '2024-12-31'
+LIMIT 100"""
+    click.secho(query5, fg='green')
+    click.echo()
+
+    click.secho(f"{'='*70}", dim=True)
+    click.secho(f"Table path for copy-paste: {full_path}", fg='yellow', bold=True)
+    click.echo()
+
+
+def print_field_query_template(client, table_name, field_name, dataset_id=None, project_id=None):
+    """
+    Generate and print SQL query templates for a specific field
+
+    Args:
+        client: BigQuery client instance
+        table_name: Name of the table
+        field_name: Name of the field
+        dataset_id: Dataset ID (defaults to DEFAULT_DATASET)
+        project_id: Project ID (defaults to DEFAULT_PROJECT)
+    """
+    # Use defaults if not provided
+    if dataset_id is None:
+        from ..core.auth import get_gbq_dataset_id
+        dataset_id = get_gbq_dataset_id()
+        if dataset_id is None:
+            dataset_id = DEFAULT_DATASET
+
+    if project_id is None:
+        from ..core.auth import get_gbq_project_id
+        project_id = get_gbq_project_id()
+        if project_id is None:
+            project_id = DEFAULT_PROJECT
+
+    full_path = f"{project_id}.{dataset_id}.{table_name}"
+
+    # Get table schema to find field type
+    try:
+        table_ref = f"{project_id}.{dataset_id}.{table_name}"
+        table = client.get_table(table_ref)
+
+        # Find the field in schema
+        field_schema = None
+        for field in table.schema:
+            if field.name == field_name:
+                field_schema = field
+                break
+
+        if not field_schema:
+            click.secho(f"Error: Field '{field_name}' not found in table '{table_name}'", fg='red')
+            return
+
+        field_type = field_schema.field_type
+        field_mode = field_schema.mode
+        field_desc = field_schema.description or "No description"
+
+    except Exception as e:
+        click.secho(f"Error getting field info: {str(e)}", fg='red')
+        return
+
+    click.echo()
+    click.secho(f"SQL QUERY TEMPLATES for field: {field_name}", bold=True, fg='cyan')
+    click.secho(f"Table: {table_name}", dim=True)
+    click.secho(f"Type: {field_type} | Mode: {field_mode}", dim=True)
+    click.secho(f"Description: {field_desc}", dim=True)
+    click.secho(f"{'='*70}", dim=True)
+    click.echo()
+
+    # Generate templates based on field type and mode
+    if field_mode == 'REPEATED':
+        # Array/repeated field - use UNNEST
+        click.secho("1. Unnest array field:", bold=True)
+        query1 = f"""SELECT
+  {field_name}_item
+FROM `{full_path}`,
+UNNEST({field_name}) AS {field_name}_item
+LIMIT 100"""
+        click.secho(query1, fg='green')
+        click.echo()
+
+        click.secho("2. Count occurrences of array items:", bold=True)
+        query2 = f"""SELECT
+  {field_name}_item,
+  COUNT(*) as count
+FROM `{full_path}`,
+UNNEST({field_name}) AS {field_name}_item
+GROUP BY {field_name}_item
+ORDER BY count DESC
+LIMIT 20"""
+        click.secho(query2, fg='green')
+        click.echo()
+
+        click.secho("3. Filter by array contains value:", bold=True)
+        query3 = f"""SELECT *
+FROM `{full_path}`
+WHERE '<value>' IN UNNEST({field_name})
+LIMIT 100"""
+        click.secho(query3, fg='green')
+        click.echo()
+
+    elif field_type == 'RECORD':
+        # Nested/struct field - use dot notation
+        click.secho("1. Access nested field (replace <subfield>):", bold=True)
+        query1 = f"""SELECT
+  {field_name}.<subfield>
+FROM `{full_path}`
+LIMIT 100"""
+        click.secho(query1, fg='green')
+        click.echo()
+
+        click.secho("2. Select multiple nested fields:", bold=True)
+        query2 = f"""SELECT
+  {field_name}.<subfield1>,
+  {field_name}.<subfield2>
+FROM `{full_path}`
+WHERE {field_name}.<subfield1> IS NOT NULL
+LIMIT 100"""
+        click.secho(query2, fg='green')
+        click.echo()
+
+        click.secho("3. Group by nested field:", bold=True)
+        query3 = f"""SELECT
+  {field_name}.<subfield>,
+  COUNT(*) as count
+FROM `{full_path}`
+GROUP BY {field_name}.<subfield>
+ORDER BY count DESC
+LIMIT 20"""
+        click.secho(query3, fg='green')
+        click.echo()
+
+    elif field_type in ('STRING', 'BYTES'):
+        # String fields
+        click.secho("1. Filter by exact match:", bold=True)
+        query1 = f"""SELECT *
+FROM `{full_path}`
+WHERE {field_name} = '<value>'
+LIMIT 100"""
+        click.secho(query1, fg='green')
+        click.echo()
+
+        click.secho("2. Search with pattern (LIKE):", bold=True)
+        query2 = f"""SELECT *
+FROM `{full_path}`
+WHERE {field_name} LIKE '%search_term%'
+LIMIT 100"""
+        click.secho(query2, fg='green')
+        click.echo()
+
+        click.secho("3. Count distinct values:", bold=True)
+        query3 = f"""SELECT
+  {field_name},
+  COUNT(*) as count
+FROM `{full_path}`
+GROUP BY {field_name}
+ORDER BY count DESC
+LIMIT 20"""
+        click.secho(query3, fg='green')
+        click.echo()
+
+        click.secho("4. Check for NULL values:", bold=True)
+        query4 = f"""SELECT
+  COUNT(*) as total_rows,
+  COUNTIF({field_name} IS NULL) as null_count,
+  COUNTIF({field_name} IS NOT NULL) as non_null_count
+FROM `{full_path}`"""
+        click.secho(query4, fg='green')
+        click.echo()
+
+    elif field_type in ('INTEGER', 'INT64', 'FLOAT', 'FLOAT64', 'NUMERIC', 'BIGNUMERIC'):
+        # Numeric fields
+        click.secho("1. Get statistics (min, max, avg):", bold=True)
+        query1 = f"""SELECT
+  MIN({field_name}) as min_value,
+  MAX({field_name}) as max_value,
+  AVG({field_name}) as avg_value,
+  STDDEV({field_name}) as stddev_value
+FROM `{full_path}`"""
+        click.secho(query1, fg='green')
+        click.echo()
+
+        click.secho("2. Filter by numeric range:", bold=True)
+        query2 = f"""SELECT *
+FROM `{full_path}`
+WHERE {field_name} BETWEEN <min_value> AND <max_value>
+LIMIT 100"""
+        click.secho(query2, fg='green')
+        click.echo()
+
+        click.secho("3. Count by value buckets:", bold=True)
+        query3 = f"""SELECT
+  {field_name},
+  COUNT(*) as count
+FROM `{full_path}`
+GROUP BY {field_name}
+ORDER BY {field_name}
+LIMIT 20"""
+        click.secho(query3, fg='green')
+        click.echo()
+
+        click.secho("4. Sum and aggregate:", bold=True)
+        query4 = f"""SELECT
+  SUM({field_name}) as total,
+  COUNT(*) as row_count
+FROM `{full_path}`"""
+        click.secho(query4, fg='green')
+        click.echo()
+
+    elif field_type in ('DATE', 'DATETIME', 'TIMESTAMP'):
+        # Date/time fields
+        click.secho("1. Filter by date range:", bold=True)
+        query1 = f"""SELECT *
+FROM `{full_path}`
+WHERE {field_name} BETWEEN '2024-01-01' AND '2024-12-31'
+LIMIT 100"""
+        click.secho(query1, fg='green')
+        click.echo()
+
+        click.secho("2. Group by date (year/month):", bold=True)
+        query2 = f"""SELECT
+  EXTRACT(YEAR FROM {field_name}) as year,
+  EXTRACT(MONTH FROM {field_name}) as month,
+  COUNT(*) as count
+FROM `{full_path}`
+GROUP BY year, month
+ORDER BY year, month"""
+        click.secho(query2, fg='green')
+        click.echo()
+
+        click.secho("3. Get most recent records:", bold=True)
+        query3 = f"""SELECT *
+FROM `{full_path}`
+ORDER BY {field_name} DESC
+LIMIT 10"""
+        click.secho(query3, fg='green')
+        click.echo()
+
+        click.secho("4. Find records from last N days:", bold=True)
+        query4 = f"""SELECT *
+FROM `{full_path}`
+WHERE {field_name} >= CURRENT_DATE() - 30
+ORDER BY {field_name} DESC
+LIMIT 100"""
+        click.secho(query4, fg='green')
+        click.echo()
+
+    elif field_type == 'BOOLEAN':
+        # Boolean fields
+        click.secho("1. Filter by true/false:", bold=True)
+        query1 = f"""SELECT *
+FROM `{full_path}`
+WHERE {field_name} = TRUE
+LIMIT 100"""
+        click.secho(query1, fg='green')
+        click.echo()
+
+        click.secho("2. Count true vs false:", bold=True)
+        query2 = f"""SELECT
+  {field_name},
+  COUNT(*) as count
+FROM `{full_path}`
+GROUP BY {field_name}"""
+        click.secho(query2, fg='green')
+        click.echo()
+
+    else:
+        # Generic fallback
+        click.secho("1. Select field:", bold=True)
+        query1 = f"""SELECT {field_name}
+FROM `{full_path}`
+WHERE {field_name} IS NOT NULL
+LIMIT 100"""
+        click.secho(query1, fg='green')
+        click.echo()
+
+        click.secho("2. Count non-null values:", bold=True)
+        query2 = f"""SELECT COUNT(*) as non_null_count
+FROM `{full_path}`
+WHERE {field_name} IS NOT NULL"""
+        click.secho(query2, fg='green')
+        click.echo()
+
+    click.secho(f"{'='*70}", dim=True)
+    click.secho(f"Field: {field_name} | Type: {field_type} | Mode: {field_mode}", fg='yellow', bold=True)
+    click.echo()

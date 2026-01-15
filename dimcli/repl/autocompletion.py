@@ -76,7 +76,7 @@ class CleverCompleter(Completer):
             candidates = G.sources() + G.entities()
 
         elif line_last_word(line_minus_current) in ["/gbq"]:
-            candidates = ["tables", "fields"]
+            candidates = ["tables", "fields", "query", "fieldquery"]
 
         elif line_last_word(line_minus_current) in ["describe"]:
             candidates = G.allowed_starts("describe")

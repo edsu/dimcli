@@ -54,6 +54,8 @@ All special commands start with '/'
 >>> /gbq fields [table]: list all fields in a specific table.
 >>> /gbq fields "search": search for fields containing string across all tables.
 >>> /gbq fields [table] "search": search for fields containing string within a specific table.
+>>> /gbq query [table]: generate SQL query templates for a table (ready to copy-paste).
+>>> /gbq fieldquery [table] [field]: generate field-specific SQL templates (handles nested/repeated fields).
 >>> /export_as_json: save results from last query as JSON file.
 >>> /export_as_csv: save results from last query as CSV file.
 >>> /export_as_gist: save results from last query as Github GIST.
@@ -287,7 +289,8 @@ class CommandsManager(object):
         try:
             from ..utils.gbq_utils import (
                 get_gbq_client, list_tables, list_fields,
-                print_tables, print_fields
+                print_tables, print_fields, print_query_template,
+                print_field_query_template
             )
         except ImportError as e:
             click.secho("BigQuery integration not available.", fg="red")
@@ -297,6 +300,9 @@ class CommandsManager(object):
         # Parse: /gbq tables [search_term]
         #        /gbq fields [table_name]
         #        /gbq fields "search_term"
+        #        /gbq fields [table_name] "search_term"
+        #        /gbq query [table_name]
+        #        /gbq fieldquery [table_name] [field_name]
 
         parts = text.replace("/gbq", "").strip().split()
 
@@ -306,6 +312,8 @@ class CommandsManager(object):
             click.secho("  /gbq fields [table]              - list all fields in a table", dim=True)
             click.secho("  /gbq fields \"search\"              - search for fields containing string across all tables", dim=True)
             click.secho("  /gbq fields [table] \"search\"      - search for fields within a specific table", dim=True)
+            click.secho("  /gbq query [table]               - generate SQL query templates for a table", dim=True)
+            click.secho("  /gbq fieldquery [table] [field]  - generate field-specific SQL templates (handles nested/array fields)", dim=True)
             click.secho("\nDefault dataset: dimensions-ai.data_analytics", dim=True)
             return
 
@@ -359,9 +367,29 @@ class CommandsManager(object):
                     click.secho("Error: Too many arguments", fg="red")
                     click.secho("Usage: /gbq fields [table] OR /gbq fields \"search\" OR /gbq fields <table> \"search\"", dim=True)
 
+            elif subcommand == "query":
+                if len(parts) == 2:
+                    # /gbq query <table> - generate SQL query templates
+                    table_name = parts[1]
+                    print_query_template(table_name)
+                else:
+                    click.secho("Error: Please specify a table name", fg="red")
+                    click.secho("Usage: /gbq query <table_name>", dim=True)
+
+            elif subcommand == "fieldquery":
+                if len(parts) == 3:
+                    # /gbq fieldquery <table> <field> - generate field-specific SQL query templates
+                    table_name = parts[1]
+                    field_name = parts[2]
+                    client = get_gbq_client()
+                    print_field_query_template(client, table_name, field_name)
+                else:
+                    click.secho("Error: Please specify table and field names", fg="red")
+                    click.secho("Usage: /gbq fieldquery <table_name> <field_name>", dim=True)
+
             else:
                 click.secho(f"Unknown sub-command: {subcommand}", fg="red")
-                click.secho("Available sub-commands: tables, fields", dim=True)
+                click.secho("Available sub-commands: tables, fields, query, fieldquery", dim=True)
 
         except Exception as e:
             click.secho(f"BigQuery error: {str(e)}", fg="red")
