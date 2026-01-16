@@ -50,6 +50,12 @@ All special commands start with '/'
 >>> <tab>:  autocomplete.
 ----
 >>> /docs: print out documentation for DSL data objects.
+>>> /gbq tables [keyword]: list tables in tabular format (searches table name only; if 1 found, shows fields).
+>>> /gbq fields [table]: list all fields in a specific table.
+>>> /gbq fields "search": search for fields containing string across all tables.
+>>> /gbq fields [table] "search": search for fields containing string within a specific table.
+>>> /gbq query [table]: generate SQL query templates for a table (ready to copy-paste).
+>>> /gbq fieldquery [table] [field]: generate field-specific SQL templates (handles nested/repeated fields).
 >>> /export_as_json: save results from last query as JSON file.
 >>> /export_as_csv: save results from last query as CSV file.
 >>> /export_as_gist: save results from last query as Github GIST.
@@ -113,6 +119,9 @@ class CommandsManager(object):
 
         elif text.replace("\n", "").strip().startswith("/docs"):
             self.docs_full(text.replace("\n", "").strip())
+
+        elif text.replace("\n", "").strip().startswith("/gbq"):
+            self.gbq_handler(text.replace("\n", "").strip())
 
         elif text.replace("\n", "").strip().startswith("/url"):
             self.url_resolver(text.replace("\n", "").strip())
@@ -271,6 +280,121 @@ class CommandsManager(object):
             except ValueError:
                 slice_no = DEFAULT_NO_RECORDS
             preview_results(jsondata, maxitems=slice_no)
+
+
+    def gbq_handler(self, text):
+        """
+        Handle /gbq command with sub-commands for BigQuery schema exploration
+        """
+        try:
+            from ..utils.gbq_utils import (
+                get_gbq_client, list_tables, list_fields,
+                print_tables, print_fields, print_query_template,
+                print_field_query_template
+            )
+        except ImportError as e:
+            click.secho("BigQuery integration not available.", fg="red")
+            click.secho("Install with: pip install google-cloud-bigquery", dim=True)
+            return
+
+        # Parse: /gbq tables [search_term]
+        #        /gbq fields [table_name]
+        #        /gbq fields "search_term"
+        #        /gbq fields [table_name] "search_term"
+        #        /gbq query [table_name]
+        #        /gbq fieldquery [table_name] [field_name]
+
+        parts = text.replace("/gbq", "").strip().split()
+
+        if len(parts) == 0:
+            click.secho("Usage:", bold=True)
+            click.secho("  /gbq tables [keyword]            - list tables (searches table name only; if 1 found, shows fields)", dim=True)
+            click.secho("  /gbq fields [table]              - list all fields in a table", dim=True)
+            click.secho("  /gbq fields \"search\"              - search for fields containing string across all tables", dim=True)
+            click.secho("  /gbq fields [table] \"search\"      - search for fields within a specific table", dim=True)
+            click.secho("  /gbq query [table]               - generate SQL query templates for a table", dim=True)
+            click.secho("  /gbq fieldquery [table] [field]  - generate field-specific SQL templates (handles nested/array fields)", dim=True)
+            click.secho("\nDefault dataset: dimensions-ai.data_analytics", dim=True)
+            return
+
+        subcommand = parts[0]
+
+        try:
+            client = get_gbq_client()
+
+            if subcommand == "tables":
+                search_term = parts[1] if len(parts) > 1 else None
+                tables = list_tables(client, search_term=search_term)
+                print_tables(tables)
+
+                # If exactly one table found, also display its fields
+                if len(tables) == 1:
+                    click.echo()  # Add spacing
+                    table_name = tables[0]['name']
+                    click.secho(f"Showing fields for table: {table_name}", fg="green", bold=True)
+                    fields = list_fields(client, table_name=table_name)
+                    print_fields(fields)
+
+            elif subcommand == "fields":
+                if len(parts) == 1:
+                    # /gbq fields - show all fields across all tables
+                    fields = list_fields(client)
+                    print_fields(fields)
+                elif len(parts) == 2:
+                    arg = parts[1]
+                    # Check if argument is quoted (search term) or not (table name)
+                    if (arg.startswith('"') and arg.endswith('"')) or (arg.startswith("'") and arg.endswith("'")):
+                        # /gbq fields "search" - search for fields containing the term across all tables
+                        search_term = arg[1:-1]  # Remove quotes
+                        fields = list_fields(client, search_term=search_term)
+                        print_fields(fields, search_term=search_term)
+                    else:
+                        # /gbq fields <table> - show fields for specific table
+                        fields = list_fields(client, table_name=arg)
+                        print_fields(fields)
+                elif len(parts) == 3:
+                    # /gbq fields <table> "search" - search within specific table
+                    table_name = parts[1]
+                    search_arg = parts[2]
+                    if (search_arg.startswith('"') and search_arg.endswith('"')) or (search_arg.startswith("'") and search_arg.endswith("'")):
+                        search_term = search_arg[1:-1]  # Remove quotes
+                        fields = list_fields(client, table_name=table_name, search_term=search_term)
+                        print_fields(fields, search_term=search_term)
+                    else:
+                        click.secho("Error: Second argument must be quoted for search", fg="red")
+                        click.secho("Usage: /gbq fields <table> \"search\"", dim=True)
+                else:
+                    click.secho("Error: Too many arguments", fg="red")
+                    click.secho("Usage: /gbq fields [table] OR /gbq fields \"search\" OR /gbq fields <table> \"search\"", dim=True)
+
+            elif subcommand == "query":
+                if len(parts) == 2:
+                    # /gbq query <table> - generate SQL query templates
+                    table_name = parts[1]
+                    print_query_template(table_name)
+                else:
+                    click.secho("Error: Please specify a table name", fg="red")
+                    click.secho("Usage: /gbq query <table_name>", dim=True)
+
+            elif subcommand == "fieldquery":
+                if len(parts) == 3:
+                    # /gbq fieldquery <table> <field> - generate field-specific SQL query templates
+                    table_name = parts[1]
+                    field_name = parts[2]
+                    client = get_gbq_client()
+                    print_field_query_template(client, table_name, field_name)
+                else:
+                    click.secho("Error: Please specify table and field names", fg="red")
+                    click.secho("Usage: /gbq fieldquery <table_name> <field_name>", dim=True)
+
+            else:
+                click.secho(f"Unknown sub-command: {subcommand}", fg="red")
+                click.secho("Available sub-commands: tables, fields, query, fieldquery", dim=True)
+
+        except Exception as e:
+            click.secho(f"BigQuery error: {str(e)}", fg="red")
+            if "credentials" in str(e).lower() or "authentication" in str(e).lower():
+                click.secho("Tip: Set GOOGLE_APPLICATION_CREDENTIALS or run 'gcloud auth application-default login'", dim=True)
 
 
 

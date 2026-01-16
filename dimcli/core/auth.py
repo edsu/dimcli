@@ -409,3 +409,88 @@ def read_settings_file(fpath, section_name):
     return section
 
 
+###
+#
+# BigQuery configuration helpers
+#
+#
+###
+
+
+def get_gbq_project_id():
+    """
+    Retrieve BigQuery project ID from settings file
+
+    Requires a sections in settings file like this:
+
+    [bigquery]
+    project_id=your-gcloud-project
+    dataset_id=your-dataset
+
+
+    Returns:
+        str: Project ID or None if not configured
+    """
+    fpath = get_settings_file()
+    if not fpath:
+        return None
+
+    try:
+        section = read_settings_file(fpath, 'bigquery')
+        return section.get('project_id', None)
+    except:
+        return None
+
+
+def get_gbq_dataset_id():
+    """
+    Retrieve BigQuery dataset ID from settings file
+
+    Returns:
+        str: Dataset ID or None if not configured
+    """
+    fpath = get_settings_file()
+    if not fpath:
+        return None
+
+    try:
+        section = read_settings_file(fpath, 'bigquery')
+        return section.get('dataset_id', None)
+    except:
+        return None
+
+
+def set_gbq_project_id(project_id):
+    """
+    Save BigQuery project ID to settings file
+
+    2026-01-11: unused
+
+    Args:
+        project_id: GCP project ID to save
+    """
+    # Ensure directory exists
+    if not os.path.exists(USER_DIR):
+        os.makedirs(USER_DIR)
+
+    fpath = USER_SETTINGS_FILE_PATH
+
+    config = configparser.ConfigParser()
+
+    # Read existing settings if file exists
+    if os.path.exists(fpath):
+        config.read(fpath)
+
+    # Add or update bigquery section
+    if not config.has_section('bigquery'):
+        config.add_section('bigquery')
+
+    config.set('bigquery', 'project_id', project_id)
+
+    # Write to file
+    with open(fpath, 'w') as configfile:
+        config.write(configfile)
+
+    click.secho(f"BigQuery project ID saved to {fpath}", fg="green")
+
+
