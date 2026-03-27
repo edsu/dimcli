@@ -94,6 +94,9 @@ dimcli -q "search clinical_trials where research_orgs = \"<grid_id>\" return cli
 # Patents — NOTE: uses 'assignees', not 'research_orgs'
 dimcli -q "search patents where assignees = \"<grid_id>\" return patents limit 1" -f json 2>/dev/null
 
+# Reports
+dimcli -q "search reprots where research_orgs = \"<grid_id>\" return reports limit 1" -f json 2>/dev/null
+
 # Policy Documents — NOTE: uses 'publisher_org', not 'research_orgs'
 dimcli -q "search policy_documents where publisher_org = \"<grid_id>\" return policy_documents limit 1" -f json 2>/dev/null
 ```
@@ -104,6 +107,28 @@ dimcli -q "search policy_documents where publisher_org = \"<grid_id>\" return po
 > | publications, grants, datasets, clinical_trials | `research_orgs` |
 > | patents | `assignees` |
 > | policy_documents | `publisher_org` |
+
+**Step 2b — Count documents where org is a funder:**
+
+```bash
+# Publications (as funder)
+dimcli -q "search publications where funders = \"<grid_id>\" return publications limit 1" -f json 2>/dev/null
+
+# Grants (as funder) — NOTE: uses 'funder_orgs', not 'funders'
+dimcli -q "search grants where funder_orgs = \"<grid_id>\" return grants limit 1" -f json 2>/dev/null
+
+# Datasets (as funder)
+dimcli -q "search datasets where funders = \"<grid_id>\" return datasets limit 1" -f json 2>/dev/null
+
+# Clinical Trials (as funder)
+dimcli -q "search clinical_trials where funders = \"<grid_id>\" return clinical_trials limit 1" -f json 2>/dev/null
+
+# Patents (as funder)
+dimcli -q "search patents where funders = \"<grid_id>\" return patents limit 1" -f json 2>/dev/null
+
+# Reports (as funder) — NOTE: uses 'funder_orgs', not 'funders'
+dimcli -q "search reports where funder_orgs = \"<grid_id>\" return reports limit 1" -f json 2>/dev/null
+```
 
 **Step 3 — Piping to Python:**
 
@@ -144,7 +169,7 @@ Print the profile as a markdown report:
 - Child orgs: <organization_child_ids>
 - Related orgs: <organization_related_ids>
 
-## Document Counts
+## Document Counts (as Research Org)
 | Source | Count | Dimensions URL |
 |--------|------:|----------------|
 | Publications | N | https://app.dimensions.ai/discover/publication?and_facet_research_org=<grid_id> |
@@ -152,7 +177,19 @@ Print the profile as a markdown report:
 | Datasets | N | https://app.dimensions.ai/discover/dataset?and_facet_research_org=<grid_id> |
 | Clinical Trials | N | https://app.dimensions.ai/discover/clinical_trial?and_facet_research_org=<grid_id> |
 | Patents | N | https://app.dimensions.ai/discover/patent?and_facet_research_org=<grid_id> |
+| Reports | N | https://app.dimensions.ai/discover/technical_report?and_facet_research_org=<grid_id> |
 | Policy Documents | N | https://app.dimensions.ai/discover/policy_document?and_facet_research_org=<grid_id> |
+| **Total** | **N** | |
+
+## Document Counts (as Funder)
+| Source | Count | Dimensions URL |
+|--------|------:|----------------|
+| Publications | N | https://app.dimensions.ai/discover/publication?or_facet_funder=<grid_id> |
+| Grants | N | https://app.dimensions.ai/discover/grant?or_facet_funder=<grid_id> |
+| Datasets | N | https://app.dimensions.ai/discover/data_set?or_facet_funder=<grid_id> |
+| Clinical Trials | N | https://app.dimensions.ai/discover/clinical_trial?or_facet_funder=<grid_id> |
+| Patents | N | https://app.dimensions.ai/discover/patent?or_facet_funder=<grid_id> |
+| Reports | N | https://app.dimensions.ai/discover/technical_report?or_facet_funder=<grid_id> |
 | **Total** | **N** | |
 ```
 
