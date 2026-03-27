@@ -24,6 +24,10 @@ USER_EXPORTS_DIR = os.path.expanduser("~/dimcli-exports/")
 USER_SETTINGS_FILE_NAME = "settings"
 USER_SETTINGS_FILE_PATH = os.path.expanduser(USER_DIR + USER_SETTINGS_FILE_NAME)
 
+# for CLI session persistence
+USER_SESSION_FILE_PATH = os.path.expanduser(USER_DIR + "session.json")
+SESSION_TTL_SECONDS = 3600  # reuse token for up to 1 hour
+
 
 
 ###
@@ -274,6 +278,56 @@ def is_logged_in_globally():
     else:
         printDebug("Warning: you are not logged in. Please use `dimcli.login(username, password)` before querying.")
         return False
+
+
+def save_cli_session(session):
+    """Persist the API session token to disk so CLI invocations can reuse it.
+
+    Saves to ~/.dimensions/session.json with a timestamp used to enforce
+    SESSION_TTL_SECONDS expiry.
+    """
+    data = {
+        "token": session.token,
+        "url": session.url,
+        "url_auth": session.url_auth,
+        "url_query": session.url_query,
+        "instance": session.instance,
+        "username": session.username,
+        "key": session.key,
+        "verify_ssl": session.verify_ssl,
+        "timestamp": time.time(),
+    }
+    os.makedirs(USER_DIR, exist_ok=True)
+    with open(USER_SESSION_FILE_PATH, "w") as f:
+        json.dump(data, f)
+
+
+def load_cli_session():
+    """Load a previously saved CLI session if it exists and has not expired.
+
+    Returns an APISession object ready to use, or None if no valid session is
+    found (missing file, parse error, or TTL exceeded).
+    """
+    if not os.path.exists(USER_SESSION_FILE_PATH):
+        return None
+    try:
+        with open(USER_SESSION_FILE_PATH, "r") as f:
+            data = json.load(f)
+        age = time.time() - data.get("timestamp", 0)
+        if age > SESSION_TTL_SECONDS:
+            return None
+        session = APISession(verbose=True)
+        session.token = data["token"]
+        session.url = data["url"]
+        session.url_auth = data.get("url_auth")
+        session.url_query = data.get("url_query")
+        session.instance = data.get("instance")
+        session.username = data.get("username")
+        session.key = data.get("key")
+        session.verify_ssl = data.get("verify_ssl", True)
+        return session
+    except Exception:
+        return None
 
 
 

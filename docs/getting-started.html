@@ -57,7 +57,10 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#dimcli-as-a-python-module">Dimcli as a Python module</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#dimcli-as-a-command-line-interface">Dimcli as a Command Line Interface</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#dimcli-as-a-command-line-interface">Dimcli as a Command Line Interface</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#running-queries-from-the-command-line">Running queries from the command line</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#dimcli-with-jupyter-notebooks">Dimcli with Jupyter Notebooks</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#changelog">Changelog</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#comments-bug-reports">Comments, bug reports</a></li>
@@ -363,6 +366,34 @@ token: d5047fASAD889912HHBAJVSAD8e8bae17e2
 </div>
 <p>That’ll launch the Dimcli console, where you can hit <code class="docutils literal notranslate"><span class="pre">help</span></code> in case you need more support :-)</p>
 <p><img alt="dimcli_animation" src="https://raw.githubusercontent.com/digital-science/dimcli/master/static/dimcli_animated.gif" /></p>
+<section id="running-queries-from-the-command-line">
+<h3>Running queries from the command line<a class="headerlink" href="#running-queries-from-the-command-line" title="Permalink to this headline"></a></h3>
+<p>It is also possible to run a DSL query directly from the shell, without entering the interactive console, using the <code class="docutils literal notranslate"><span class="pre">-q</span></code> flag:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ dimcli -q <span class="s2">&quot;search publications for \&quot;malaria\&quot; return publications[id+title+year] limit 5&quot;</span>
+</pre></div>
+</div>
+<p>By default results are printed as JSON. Use the <code class="docutils literal notranslate"><span class="pre">-f</span></code> / <code class="docutils literal notranslate"><span class="pre">--format</span></code> option to change the output format:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># formatted table (ideal for quick inspection in the terminal)</span>
+$ dimcli -q <span class="s2">&quot;search publications for \&quot;malaria\&quot; return publications[id+title+year] limit 5&quot;</span> -f df
+
+<span class="c1"># CSV (ideal for piping to a file or another tool)</span>
+$ dimcli -q <span class="s2">&quot;search publications for \&quot;malaria\&quot; return publications[id+title+year] limit 5&quot;</span> -f csv &gt; results.csv
+</pre></div>
+</div>
+<p>Two optional flags further control the output:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--nice</span></code> — flattens nested structures (e.g. author lists, category objects) into readable strings. Equivalent to the <code class="docutils literal notranslate"><span class="pre">--nice</span></code> flag of the <code class="docutils literal notranslate"><span class="pre">%%dsldf</span></code> Jupyter magic command. Works with <code class="docutils literal notranslate"><span class="pre">-f</span> <span class="pre">df</span></code> and <code class="docutils literal notranslate"><span class="pre">-f</span> <span class="pre">csv</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--html</span></code> — renders the results as an HTML table with clickable Dimensions hyperlinks. Works with <code class="docutils literal notranslate"><span class="pre">-f</span> <span class="pre">df</span></code> only; the output can be piped to an HTML file.</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># nice flat table</span>
+$ dimcli -q <span class="s2">&quot;search publications for \&quot;malaria\&quot; return publications limit 5&quot;</span> -f df --nice
+
+<span class="c1"># HTML table with hyperlinks, saved to a file</span>
+$ dimcli -q <span class="s2">&quot;search publications for \&quot;malaria\&quot; return publications limit 5&quot;</span> -f df --html &gt; results.html
+</pre></div>
+</div>
+<p><strong>Session caching.</strong> To avoid re-authenticating on every invocation, Dimcli saves the API token to <code class="docutils literal notranslate"><span class="pre">~/.dimensions/session.json</span></code> after the first successful login and reuses it for up to one hour.</p>
+</section>
 </section>
 <section id="dimcli-with-jupyter-notebooks">
 <h2>Dimcli with Jupyter Notebooks<a class="headerlink" href="#dimcli-with-jupyter-notebooks" title="Permalink to this headline"></a></h2>

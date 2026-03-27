@@ -12,6 +12,7 @@ pandas>=1.1.1
 sphinx-rtd-theme
 recommonmark>=0.6.0
 tqdm>=4.48
+tabulate>=0.8.9
 
 # Optional: For BigQuery schema exploration (/gbq command)
 # google-cloud-bigquery>=3.0.0

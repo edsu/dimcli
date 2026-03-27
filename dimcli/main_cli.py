@@ -8,7 +8,9 @@ import webbrowser
 
 from .VERSION import *
 
-from .core.auth import USER_DIR, USER_CONFIG_FILE_PATH, USER_HISTORY_FILE
+from .core.auth import (USER_DIR, USER_CONFIG_FILE_PATH, USER_HISTORY_FILE,
+                        do_global_login, get_global_connection,
+                        save_cli_session, load_cli_session)
 from .core.api import *
 from .utils.misc_utils import open_multi_platform
 from .utils.repl_utils import init_config_folder, print_warning_prompt_version, preview_contents
@@ -46,15 +48,28 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
     "--history", is_flag=True, help="Open query history file.")
 @click.option(
     "--identifier", "-i", help="Open Dimensions webapp from an object ID.")
+
 @click.option(
-    "--websearch", "-w", help="Search Dimensions webapp from a quoted string.")
+    "--query", "-q", help="Run a DSL query and print results to stdout.")
+@click.option(
+    "--format", "-f", "output_format",
+    type=click.Choice(["json", "csv", "df"], case_sensitive=False),
+    default="json",
+    show_default=True,
+    help="Output format for -q results.")
+@click.option(
+    "--nice", "nice_flag", is_flag=True,
+    help="Flatten nested structures into readable strings (applies to csv/df formats).")
+@click.option(
+    "--html", "html_flag", is_flag=True,
+    help="Add Dimensions hyperlinks (applies to df format only; outputs HTML).")
 @click.pass_context
-def main_cli(ctx, instance_name=None, init=False, settings=False, checkversion=False, history=False, identifier=None, websearch=None):
+def main_cli(ctx, instance_name=None, init=False, settings=False, checkversion=False, history=False, identifier=None, query=None, output_format="json", nice_flag=False, html_flag=False):
     """
     Python client for the Dimensions Analytics API.
     More info: https://github.com/digital-science/dimcli
     """
-    if not (identifier or websearch):
+    if not (identifier or query):
         click.secho("Dimcli - Dimensions API Client (" + VERSION + ")", dim=True)
 
     if init:
@@ -75,11 +90,76 @@ def main_cli(ctx, instance_name=None, init=False, settings=False, checkversion=F
         webbrowser.open(url)
         return 
 
-    if websearch:
-        url = dimensions_search_url(websearch)
-        click.secho("Opening url: " + url)
-        webbrowser.open(url)
-        return 
+
+    if query:
+        import json as _json
+        session = load_cli_session()
+        if session:
+            import dimcli.core.auth as _auth
+            _auth.CONNECTION = session
+            click.secho("Reusing cached session.", dim=True, err=True)
+        else:
+            if not os.path.exists(USER_CONFIG_FILE_PATH):
+                click.secho(
+                    "Credentials file not found - you can create one by typing: `dimcli --init`",
+                    fg="red",
+                )
+                return
+            click.secho("Authenticating...", dim=True, err=True)
+            do_global_login(instance=instance_name)
+            session = get_global_connection()
+            save_cli_session(session)
+        dsl = Dsl(verbose=False)
+        result = dsl.query(query)
+        if output_format == "json":
+            click.echo(_json.dumps(result.json, indent=2))
+        else:
+            df = result.as_dataframe()
+            if df is None:
+                click.secho("Error: could not convert results to a dataframe.", fg="red", err=True)
+                return
+            # --nice and/or --html require knowing the source type
+            if nice_flag or html_flag:
+                from .utils.repl_utils import line_search_subject
+                source = line_search_subject(query)
+            # --nice: flatten nested structures using source-specific converters
+            if nice_flag:
+                from .utils.converters import (DslPubsConverter, DslGrantsConverter,
+                    DslPatentsConverter, DslPolicyDocumentsConverter,
+                    DslClinicaltrialsConverter, DslDatasetsConverter,
+                    DslReportsConverter, DslSourceTitlesConverter,
+                    DslOrganizationsConverter, DslResearchersConverter)
+                _converters = {
+                    "publications": DslPubsConverter,
+                    "grants": DslGrantsConverter,
+                    "patents": DslPatentsConverter,
+                    "policy_documents": DslPolicyDocumentsConverter,
+                    "clinical_trials": DslClinicaltrialsConverter,
+                    "datasets": DslDatasetsConverter,
+                    "reports": DslReportsConverter,
+                    "source_titles": DslSourceTitlesConverter,
+                    "organizations": DslOrganizationsConverter,
+                    "researchers": DslResearchersConverter,
+                }
+                if source in _converters:
+                    df = _converters[source](df).run()
+            # --html: add Dimensions hyperlinks (df format only, outputs HTML)
+            if html_flag:
+                if output_format != "df":
+                    click.secho("Note: --html is only supported with --format df; ignoring.", dim=True, err=True)
+                else:
+                    from .utils.dim_utils import dimensions_styler
+                    df = dimensions_styler(df, source)
+                    click.echo(df.to_html())
+                    return
+            if output_format == "csv":
+                click.echo(df.to_csv(index=False))
+            else:  # df
+                try:
+                    click.echo(df.to_markdown(index=False, tablefmt="grid"))
+                except ImportError:
+                    click.echo(df.to_string(index=False))
+        return
 
     if not os.path.exists(USER_CONFIG_FILE_PATH):
         click.secho(
