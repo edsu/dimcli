@@ -344,6 +344,39 @@ That'll launch the Dimcli console, where you can hit `help` in case you need mor
 ![dimcli_animation](https://raw.githubusercontent.com/digital-science/dimcli/master/static/dimcli_animated.gif)
 
 
+### Running queries from the command line
+
+It is also possible to run a DSL query directly from the shell, without entering the interactive console, using the `-q` flag:
+
+```bash
+$ dimcli -q "search publications for \"malaria\" return publications[id+title+year] limit 5"
+```
+
+By default results are printed as JSON. Use the `-f` / `--format` option to change the output format:
+
+```bash
+# formatted table (ideal for quick inspection in the terminal)
+$ dimcli -q "search publications for \"malaria\" return publications[id+title+year] limit 5" -f df
+
+# CSV (ideal for piping to a file or another tool)
+$ dimcli -q "search publications for \"malaria\" return publications[id+title+year] limit 5" -f csv > results.csv
+```
+
+Two optional flags further control the output:
+
+* `--nice` — flattens nested structures (e.g. author lists, category objects) into readable strings. Equivalent to the `--nice` flag of the `%%dsldf` Jupyter magic command. Works with `-f df` and `-f csv`.
+* `--html` — renders the results as an HTML table with clickable Dimensions hyperlinks. Works with `-f df` only; the output can be piped to an HTML file.
+
+```bash
+# nice flat table
+$ dimcli -q "search publications for \"malaria\" return publications limit 5" -f df --nice
+
+# HTML table with hyperlinks, saved to a file
+$ dimcli -q "search publications for \"malaria\" return publications limit 5" -f df --html > results.html
+```
+
+**Session caching.** To avoid re-authenticating on every invocation, Dimcli saves the API token to `~/.dimensions/session.json` after the first successful login and reuses it for up to one hour.
+
 
 ## Dimcli with Jupyter Notebooks
 

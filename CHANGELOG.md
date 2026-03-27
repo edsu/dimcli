@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v 1.7
+
+* Added DSL grammar for DSL [V2.14](https://docs.dimensions.ai/dsl/releasenotes.html#version-2-14-2026-february-week-of-2nd)
+* New `-q / --query` option to run a DSL query directly from the command line without entering the interactive REPL
+  * Results default to JSON; use `-f / --format [json|csv|df]` to change output format
+  * `-f df` renders a formatted ASCII grid table in the terminal (requires `tabulate`)
+  * `--nice` flattens nested structures into readable strings (mirrors `%%dsldf --nice` in Jupyter)
+  * `--html` renders results as an HTML table with Dimensions hyperlinks (mirrors `%%dsldf --links`; only applies with `-f df`)
+* CLI session caching: API token is saved to `~/.dimensions/session.json` and reused for up to 1 hour, avoiding repeated authentication on consecutive `-q` calls
+* Added new dependency: `tabulate>=0.8.9`
+* Removed `-w / --websearch` CLI option
+
 ## v 1.6
 
 * New `/gbq` command for BigQuery schema exploration

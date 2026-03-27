@@ -587,10 +587,10 @@ GRAMMAR_DICT = {
             "metrics": {"count": {"description": "Total count", "name": "count"}},
             "search_fields": [
                 "title_only",
-                "title_abstract_only",
-                "raw_affiliations",
-                "investigators",
                 "full_data",
+                "raw_affiliations",
+                "title_abstract_only",
+                "investigators",
             ],
         },
         "datasets": {
@@ -967,7 +967,7 @@ GRAMMAR_DICT = {
             },
             "fieldsets": ["basics", "categories"],
             "metrics": {"count": {"description": "Total count", "name": "count"}},
-            "search_fields": ["title_only", "title_abstract_only", "full_data"],
+            "search_fields": ["title_only", "full_data", "title_abstract_only"],
         },
         "funder_groups": {
             "fields": {
@@ -1520,11 +1520,11 @@ GRAMMAR_DICT = {
             },
             "search_fields": [
                 "title_only",
-                "title_abstract_only",
-                "concepts",
                 "raw_affiliations",
-                "investigators",
+                "title_abstract_only",
                 "full_data",
+                "investigators",
+                "concepts",
             ],
         },
         "organizations": {
@@ -1609,6 +1609,15 @@ GRAMMAR_DICT = {
                     "is_multivalue": True,
                     "long_description": None,
                     "type": "string",
+                },
+                "hierarchy_details": {
+                    "description": "The full family tree of organizations, for which this organization is at the top (i.e. is the `ultimate_parent`). Only available for organizations that are ultimate parents, i.e. organizations where `id` = `ultimate_parent_id`.",
+                    "is_entity": False,
+                    "is_facet": False,
+                    "is_filter": True,
+                    "is_multivalue": False,
+                    "long_description": None,
+                    "type": "json",
                 },
                 "id": {
                     "description": 'ID of the organization. E.g., "grid.26999.3d".',
@@ -1823,6 +1832,15 @@ GRAMMAR_DICT = {
                     "is_facet": False,
                     "is_filter": True,
                     "is_multivalue": True,
+                    "long_description": None,
+                    "type": "string",
+                },
+                "ultimate_parent_id": {
+                    "description": "The Dimensions Organization ID for the top organization within the family tree of organizations to which an organization belongs.",
+                    "is_entity": False,
+                    "is_facet": True,
+                    "is_filter": True,
+                    "is_multivalue": False,
                     "long_description": None,
                     "type": "string",
                 },
@@ -2370,10 +2388,10 @@ GRAMMAR_DICT = {
             "search_fields": [
                 "title_only",
                 "title_abstract_only",
+                "full_data",
+                "title_abstract_claims",
                 "assignees",
                 "inventors",
-                "title_abstract_claims",
-                "full_data",
             ],
         },
         "policy_documents": {
@@ -2980,7 +2998,7 @@ GRAMMAR_DICT = {
                     "type": "string",
                 },
                 "mesh_terms": {
-                    "description": "Medical Subject Heading terms as used in PubMed.",
+                    "description": "PubMed MeSH terms",
                     "is_entity": False,
                     "is_facet": True,
                     "is_filter": True,
@@ -3287,16 +3305,16 @@ GRAMMAR_DICT = {
                 },
             },
             "search_fields": [
-                "full_data_exact",
-                "title_only",
-                "terms",
-                "authors",
-                "funding",
-                "acknowledgements",
                 "title_abstract_only",
-                "concepts",
                 "raw_affiliations",
+                "terms",
+                "acknowledgements",
+                "funding",
+                "title_only",
                 "full_data",
+                "authors",
+                "full_data_exact",
+                "concepts",
             ],
         },
         "reports": {
@@ -3664,7 +3682,7 @@ GRAMMAR_DICT = {
             },
             "fieldsets": ["basics", "categories"],
             "metrics": {"count": {"description": "Total count", "name": "count"}},
-            "search_fields": ["title_abstract_only", "concepts", "full_data"],
+            "search_fields": ["full_data", "title_abstract_only", "concepts"],
         },
         "research_org_groups": {
             "fields": {
@@ -3793,7 +3811,7 @@ GRAMMAR_DICT = {
                     "type": "string",
                 },
                 "obsolete": {
-                    "description": "Indicates researcher ID status. 0 means that the researcher ID is still active, 1 means that the researcher ID is no longer valid. See the `redirect` field for further information on invalid researcher IDs.",
+                    "description": "Obsolete researcher IDs are excluded from search results by default unless the fields obsolete or redirect are used in the query or included among the return fields. This makes it possible to find obsolete IDs, which is necessary in some use cases, while making it difficult to use them by accident.",
                     "is_entity": False,
                     "is_facet": False,
                     "is_filter": True,
