@@ -322,7 +322,7 @@ class Dsl():
             tot =  _tot_count_prev_query # when force=True, we have no current query stats
 
         new_skip = skip+limit
-        if tot > 0 and new_skip > tot:
+        if tot is not None and tot > 0 and new_skip > tot:
             new_skip = tot
         if verbose and tot:  # if not first iteration
             t = "%.2f" % elapsed
